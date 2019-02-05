@@ -1,7 +1,7 @@
 FROM registry.svc.ci.openshift.org/ocp/builder:golang-1.10 AS builder
 WORKDIR /go/src/github.com/openshift/console-operator
 COPY . .
-RUN make build
+RUN make build WHAT="cmd/console" GOFLAGS="-brandocp"
 
 FROM registry.svc.ci.openshift.org/ocp/4.0:base
 RUN useradd console-operator

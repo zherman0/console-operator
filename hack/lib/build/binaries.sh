@@ -182,9 +182,16 @@ os::build::internal::build_binaries() {
     # Use eval to preserve embedded quoted strings.
     eval "goflags=(${OS_GOFLAGS:-})"
 
+    local brand=""
     local arg
+
     for arg; do
-      if [[ "${arg}" == -* ]]; then
+      if [[ "${arg}" == *-brand* ]]
+       then
+        #valid flags are brandocp, brandokd, brandopenshift, branddedicated, and brandonline
+        brand="${arg#-brand}"
+      elif [[ "${arg}" == -* ]]
+       then
         # Assume arguments starting with a dash are flags to pass to go.
         goflags+=("${arg}")
       fi
@@ -241,7 +248,7 @@ os::build::internal::build_binaries() {
       if [[ ${#nonstatics[@]} -gt 0 ]]; then
         GOOS=${platform%/*} GOARCH=${platform##*/} go install \
           -pkgdir "${pkgdir}/${platform}" \
-          -tags "${OS_GOFLAGS_TAGS-} ${!platform_gotags_envvar:-}" \
+          -tags "${OS_GOFLAGS_TAGS-} ${!platform_gotags_envvar:-} ${brand}" \
           -ldflags="${local_ldflags}" \
           "${goflags[@]:+${goflags[@]}}" \
           "${nonstatics[@]}"

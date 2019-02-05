@@ -2,8 +2,7 @@ package configmap
 
 import (
 	"fmt"
-
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -92,7 +91,7 @@ func customization() yaml.MapSlice {
 		{
 			// TODO: branding will need to be provided by higher level config.
 			// it should not be configurable in the CR, but needs to be configured somewhere.
-			Key: "branding", Value: brandingDefault,
+			Key: "branding", Value: BRAND,
 		}, {
 			Key: "documentationBaseURL", Value: documentationBaseURL,
 		},
