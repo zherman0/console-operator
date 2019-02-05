@@ -2,8 +2,7 @@ FROM registry.svc.ci.openshift.org/openshift/release:golang-1.10 AS builder
 # create a work dir and copy local files in
 WORKDIR /go/src/github.com/openshift/console-operator
 COPY . .
-
-RUN make build WHAT="cmd/console" GOFLAGS="-brandokd"
+RUN make build
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
 RUN useradd console-operator

@@ -1,4 +1,4 @@
-// +build okd !ocp,!openshift,!dedicated,!online
+// +build !ocp
 
 package configmap
 

@@ -186,10 +186,9 @@ os::build::internal::build_binaries() {
     local arg
 
     for arg; do
-      if [[ "${arg}" == *-brand* ]]
+      if [[ "${arg}" == "-ocp" ]]
        then
-        #valid flags are brandocp, brandokd, brandopenshift, branddedicated, and brandonline
-        brand="${arg#-brand}"
+        brand="${arg#-}"
       elif [[ "${arg}" == -* ]]
        then
         # Assume arguments starting with a dash are flags to pass to go.
