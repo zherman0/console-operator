@@ -182,15 +182,9 @@ os::build::internal::build_binaries() {
     # Use eval to preserve embedded quoted strings.
     eval "goflags=(${OS_GOFLAGS:-})"
 
-    local brand=""
     local arg
-
     for arg; do
-      if [[ "${arg}" == "-ocp" ]]
-       then
-        brand="${arg#-}"
-      elif [[ "${arg}" == -* ]]
-       then
+      if [[ "${arg}" == -* ]]; then
         # Assume arguments starting with a dash are flags to pass to go.
         goflags+=("${arg}")
       fi
@@ -247,7 +241,7 @@ os::build::internal::build_binaries() {
       if [[ ${#nonstatics[@]} -gt 0 ]]; then
         GOOS=${platform%/*} GOARCH=${platform##*/} go install \
           -pkgdir "${pkgdir}/${platform}" \
-          -tags "${OS_GOFLAGS_TAGS-} ${!platform_gotags_envvar:-} ${brand}" \
+          -tags "${OS_GOFLAGS_TAGS-} ${!platform_gotags_envvar:-} ${ADDITIONAL_GOTAGS-}" \
           -ldflags="${local_ldflags}" \
           "${goflags[@]:+${goflags[@]}}" \
           "${nonstatics[@]}"
