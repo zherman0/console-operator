@@ -1,27 +1,27 @@
 package deployment
 
 import (
-	alpha1 "github.com/openshift/api/operator/v1alpha1"
-	"github.com/openshift/console-operator/pkg/api"
-	"github.com/openshift/console-operator/pkg/console/subresource/configmap"
-	"github.com/openshift/console-operator/pkg/console/subresource/util"
 	"reflect"
 	"testing"
 
-	"github.com/openshift/console-operator/pkg/apis/console/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	operatorsv1 "github.com/openshift/api/operator/v1"
+	"github.com/openshift/console-operator/pkg/api"
+	"github.com/openshift/console-operator/pkg/console/subresource/configmap"
+	"github.com/openshift/console-operator/pkg/console/subresource/util"
 )
 
 func TestDefaultDeployment(t *testing.T) {
 	var (
-		replicaCount int32 = 3
+		replicaCount int32 = 2
 		labels             = map[string]string{"app": api.OpenShiftConsoleName, "component": "ui"}
 		gracePeriod  int64 = 30
 	)
 	type args struct {
-		cr  *v1alpha1.Console
+		cr  *operatorsv1.Console
 		cm  *corev1.ConfigMap
 		ca  *corev1.ConfigMap
 		sec *corev1.Secret
@@ -34,21 +34,20 @@ func TestDefaultDeployment(t *testing.T) {
 		{
 			name: "Test Default Config Map",
 			args: args{
-				cr: &v1alpha1.Console{
+				cr: &operatorsv1.Console{
 					TypeMeta:   metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{},
-					Spec: v1alpha1.ConsoleSpec{
-						OperatorSpec: alpha1.OperatorSpec{},
-						Count:        replicaCount,
+					Spec: operatorsv1.ConsoleSpec{
+						OperatorSpec: operatorsv1.OperatorSpec{},
 					},
-					Status: v1alpha1.ConsoleStatus{},
+					Status: operatorsv1.ConsoleStatus{},
 				},
 				cm: &corev1.ConfigMap{
 					TypeMeta: metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:                       "console-config",
 						GenerateName:               "",
-						Namespace:                  api.OpenShiftConsoleName,
+						Namespace:                  api.OpenShiftConsoleNamespace,
 						SelfLink:                   "",
 						UID:                        "",
 						ResourceVersion:            "",
@@ -79,7 +78,7 @@ func TestDefaultDeployment(t *testing.T) {
 				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:                       api.OpenShiftConsoleName,
-					Namespace:                  api.OpenShiftConsoleName,
+					Namespace:                  api.OpenShiftConsoleNamespace,
 					GenerateName:               "",
 					SelfLink:                   "",
 					UID:                        "",
@@ -88,8 +87,13 @@ func TestDefaultDeployment(t *testing.T) {
 					CreationTimestamp:          metav1.Time{},
 					DeletionTimestamp:          nil,
 					DeletionGracePeriodSeconds: nil,
-					Labels:          labels,
-					Annotations:     nil,
+					Labels: labels,
+					Annotations: map[string]string{
+						configMapResourceVersionAnnotation:          "",
+						secretResourceVersionAnnotation:             "",
+						serviceCAConfigMapResourceVersionAnnotation: "",
+						consoleImageAnnotation:                      "",
+					},
 					OwnerReferences: nil,
 					Initializers:    nil,
 					Finalizers:      nil,
@@ -107,6 +111,7 @@ func TestDefaultDeployment(t *testing.T) {
 							configMapResourceVersionAnnotation:          "",
 							secretResourceVersionAnnotation:             "",
 							serviceCAConfigMapResourceVersionAnnotation: "",
+							consoleImageAnnotation:                      "",
 						},
 					},
 						Spec: corev1.PodSpec{
@@ -180,7 +185,7 @@ func TestStub(t *testing.T) {
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      api.OpenShiftConsoleName,
-					Namespace: api.OpenShiftConsoleName,
+					Namespace: api.OpenShiftConsoleNamespace,
 					Labels: map[string]string{
 						"app": api.OpenShiftConsoleName,
 					},
@@ -192,7 +197,7 @@ func TestStub(t *testing.T) {
 					CreationTimestamp:          metav1.Time{},
 					DeletionTimestamp:          nil,
 					DeletionGracePeriodSeconds: nil,
-					Annotations:                nil,
+					Annotations:                map[string]string{},
 					OwnerReferences:            nil,
 					Initializers:               nil,
 					Finalizers:                 nil,
@@ -328,188 +333,6 @@ func Test_consoleVolumeMounts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := consoleVolumeMounts(tt.args.vc); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("consoleVolumeMounts() = %v, \nwant %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestConfigMapResourceVersionChanged(t *testing.T) {
-	type args struct {
-		dep *appsv1.Deployment
-		cm  *corev1.ConfigMap
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "Test ConfigMap Resource Versions Changed should be true",
-			args: args{
-				dep: &appsv1.Deployment{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
-					Spec: appsv1.DeploymentSpec{
-						Replicas: nil,
-						Selector: nil,
-						Template: corev1.PodTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{configMapResourceVersionAnnotation: "3.11"},
-							},
-							Spec: corev1.PodSpec{},
-						},
-						Strategy:                appsv1.DeploymentStrategy{},
-						MinReadySeconds:         0,
-						RevisionHistoryLimit:    nil,
-						Paused:                  false,
-						ProgressDeadlineSeconds: nil,
-					},
-					Status: appsv1.DeploymentStatus{},
-				},
-				cm: &corev1.ConfigMap{
-					TypeMeta: metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            "console-config",
-						Namespace:       api.OpenShiftConsoleName,
-						ResourceVersion: "3.11",
-					},
-					Data:       map[string]string{"console-config.yaml": ""},
-					BinaryData: nil,
-				},
-			},
-			want: false,
-		},
-		{
-			name: "Test ConfigMap Resource Versions Changed should be true",
-			args: args{
-				dep: &appsv1.Deployment{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
-					Spec: appsv1.DeploymentSpec{
-						Replicas: nil,
-						Selector: nil,
-						Template: corev1.PodTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{configMapResourceVersionAnnotation: "3.11"},
-							},
-							Spec: corev1.PodSpec{},
-						},
-						Strategy:                appsv1.DeploymentStrategy{},
-						MinReadySeconds:         0,
-						RevisionHistoryLimit:    nil,
-						Paused:                  false,
-						ProgressDeadlineSeconds: nil,
-					},
-					Status: appsv1.DeploymentStatus{},
-				},
-				cm: &corev1.ConfigMap{
-					TypeMeta: metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            "console-config",
-						Namespace:       api.OpenShiftConsoleName,
-						ResourceVersion: "4.0",
-					},
-					Data:       map[string]string{"console-config.yaml": ""},
-					BinaryData: nil,
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := ConfigMapResourceVersionChanged(tt.args.dep, tt.args.cm); got != tt.want {
-				t.Errorf("ConfigMapResourceVersionChanged() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSecretResourceVersionChanged(t *testing.T) {
-	type args struct {
-		dep *appsv1.Deployment
-		sec *corev1.Secret
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "Test ConfigMap Resource Versions Changed should be true",
-			args: args{
-				dep: &appsv1.Deployment{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
-					Spec: appsv1.DeploymentSpec{
-						Replicas: nil,
-						Selector: nil,
-						Template: corev1.PodTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{secretResourceVersionAnnotation: "3.11"},
-							},
-							Spec: corev1.PodSpec{},
-						},
-						Strategy:                appsv1.DeploymentStrategy{},
-						MinReadySeconds:         0,
-						RevisionHistoryLimit:    nil,
-						Paused:                  false,
-						ProgressDeadlineSeconds: nil,
-					},
-					Status: appsv1.DeploymentStatus{},
-				},
-				sec: &corev1.Secret{
-					TypeMeta: metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{
-						ResourceVersion: "3.11",
-					},
-					Data:       nil,
-					StringData: nil,
-					Type:       "",
-				},
-			},
-			want: false,
-		},
-		{
-			name: "Test ConfigMap Resource Versions Changed should be true",
-			args: args{
-				dep: &appsv1.Deployment{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
-					Spec: appsv1.DeploymentSpec{
-						Replicas: nil,
-						Selector: nil,
-						Template: corev1.PodTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Annotations: map[string]string{secretResourceVersionAnnotation: "3.11"},
-							},
-							Spec: corev1.PodSpec{},
-						},
-						Strategy:                appsv1.DeploymentStrategy{},
-						MinReadySeconds:         0,
-						RevisionHistoryLimit:    nil,
-						Paused:                  false,
-						ProgressDeadlineSeconds: nil,
-					},
-					Status: appsv1.DeploymentStatus{},
-				},
-				sec: &corev1.Secret{
-					TypeMeta: metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{
-						ResourceVersion: "4.0",
-					},
-					Data:       nil,
-					StringData: nil,
-					Type:       "",
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := SecretResourceVersionChanged(tt.args.dep, tt.args.sec); got != tt.want {
-				t.Errorf("SecretResourceVersionChanged() = %v, want %v", got, tt.want)
 			}
 		})
 	}

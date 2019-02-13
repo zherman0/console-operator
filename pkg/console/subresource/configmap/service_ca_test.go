@@ -1,18 +1,19 @@
 package configmap
 
 import (
-	"github.com/openshift/console-operator/pkg/api"
 	"reflect"
 	"testing"
 
-	"github.com/openshift/console-operator/pkg/apis/console/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	operatorv1 "github.com/openshift/api/operator/v1"
+	"github.com/openshift/console-operator/pkg/api"
 )
 
 func TestDefaultServiceCAConfigMap(t *testing.T) {
 	type args struct {
-		cr *v1alpha1.Console
+		cr *operatorv1.Console
 	}
 	tests := []struct {
 		name string
@@ -22,17 +23,17 @@ func TestDefaultServiceCAConfigMap(t *testing.T) {
 		{
 			name: "Test default service CA config map",
 			args: args{
-				cr: &v1alpha1.Console{
+				cr: &operatorv1.Console{
 					TypeMeta:   metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{},
-					Spec:       v1alpha1.ConsoleSpec{},
-					Status:     v1alpha1.ConsoleStatus{},
+					Spec:       operatorv1.ConsoleSpec{},
+					Status:     operatorv1.ConsoleStatus{},
 				},
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:                       ServiceCAConfigMapName,
-					Namespace:                  api.OpenShiftConsoleName,
+					Namespace:                  api.OpenShiftConsoleNamespace,
 					Generation:                 0,
 					CreationTimestamp:          metav1.Time{},
 					DeletionTimestamp:          nil,
@@ -66,7 +67,7 @@ func TestServiceCAStub(t *testing.T) {
 				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:                       ServiceCAConfigMapName,
-					Namespace:                  api.OpenShiftConsoleName,
+					Namespace:                  api.OpenShiftConsoleNamespace,
 					Generation:                 0,
 					CreationTimestamp:          metav1.Time{},
 					DeletionTimestamp:          nil,

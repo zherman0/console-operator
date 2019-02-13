@@ -2,14 +2,15 @@ package configmap
 
 import (
 	"fmt"
-	"github.com/openshift/api/route/v1"
 	"reflect"
 	"testing"
 
-	"github.com/openshift/console-operator/pkg/api"
-	"github.com/openshift/console-operator/pkg/apis/console/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	operatorv1 "github.com/openshift/api/operator/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	"github.com/openshift/console-operator/pkg/api"
 )
 
 const (
@@ -37,8 +38,8 @@ servingInfo:
 // To manually run these tests: go test -v ./pkg/console/subresource/configmap/...
 func TestDefaultConfigMap(t *testing.T) {
 	type args struct {
-		cr *v1alpha1.Console
-		rt *v1.Route
+		cr *operatorv1.Console
+		rt *routev1.Route
 	}
 	tests := []struct {
 		name string
@@ -48,25 +49,25 @@ func TestDefaultConfigMap(t *testing.T) {
 		{
 			name: "Test Default Config Map",
 			args: args{
-				cr: &v1alpha1.Console{
+				cr: &operatorv1.Console{
 					TypeMeta:   metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{},
-					Spec:       v1alpha1.ConsoleSpec{},
-					Status:     v1alpha1.ConsoleStatus{},
+					Spec:       operatorv1.ConsoleSpec{},
+					Status:     operatorv1.ConsoleStatus{},
 				},
-				rt: &v1.Route{
+				rt: &routev1.Route{
 					TypeMeta:   metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{},
-					Spec: v1.RouteSpec{
+					Spec: routev1.RouteSpec{
 						Host:              host,
 						Path:              "",
-						To:                v1.RouteTargetReference{},
+						To:                routev1.RouteTargetReference{},
 						AlternateBackends: nil,
 						Port:              nil,
 						TLS:               nil,
 						WildcardPolicy:    "",
 					},
-					Status: v1.RouteStatus{},
+					Status: routev1.RouteStatus{},
 				},
 			},
 			want: &corev1.ConfigMap{
@@ -74,7 +75,7 @@ func TestDefaultConfigMap(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:                       ConsoleConfigMapName,
 					GenerateName:               "",
-					Namespace:                  api.OpenShiftConsoleName,
+					Namespace:                  api.OpenShiftConsoleNamespace,
 					SelfLink:                   "",
 					UID:                        "",
 					ResourceVersion:            "",
@@ -83,7 +84,7 @@ func TestDefaultConfigMap(t *testing.T) {
 					DeletionTimestamp:          nil,
 					DeletionGracePeriodSeconds: nil,
 					Labels:          map[string]string{"app": api.OpenShiftConsoleName},
-					Annotations:     nil,
+					Annotations:     map[string]string{},
 					OwnerReferences: nil,
 					Initializers:    nil,
 					Finalizers:      nil,
@@ -115,7 +116,7 @@ func TestStub(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:                       ConsoleConfigMapName,
 					GenerateName:               "",
-					Namespace:                  api.OpenShiftConsoleName,
+					Namespace:                  api.OpenShiftConsoleNamespace,
 					SelfLink:                   "",
 					UID:                        "",
 					ResourceVersion:            "",
@@ -124,7 +125,7 @@ func TestStub(t *testing.T) {
 					DeletionTimestamp:          nil,
 					DeletionGracePeriodSeconds: nil,
 					Labels:          map[string]string{"app": api.OpenShiftConsoleName},
-					Annotations:     nil,
+					Annotations:     map[string]string{},
 					OwnerReferences: nil,
 					Initializers:    nil,
 					Finalizers:      nil,

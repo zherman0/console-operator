@@ -1,14 +1,15 @@
 package route
 
 import (
-	"github.com/openshift/console-operator/pkg/api"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
+	operatorv1 "github.com/openshift/api/operator/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	"github.com/openshift/console-operator/pkg/apis/console/v1alpha1"
+	"github.com/openshift/console-operator/pkg/api"
 )
 
 func TestDefaultRoute(t *testing.T) {
@@ -16,7 +17,7 @@ func TestDefaultRoute(t *testing.T) {
 		weight int32 = 100
 	)
 	type args struct {
-		cr *v1alpha1.Console
+		cr *operatorv1.Console
 	}
 	tests := []struct {
 		name string
@@ -26,19 +27,20 @@ func TestDefaultRoute(t *testing.T) {
 		{
 			name: "Test default route",
 			args: args{
-				cr: &v1alpha1.Console{
-					TypeMeta:   v1.TypeMeta{},
-					ObjectMeta: v1.ObjectMeta{},
-					Spec:       v1alpha1.ConsoleSpec{},
-					Status:     v1alpha1.ConsoleStatus{},
+				cr: &operatorv1.Console{
+					TypeMeta:   metav1.TypeMeta{},
+					ObjectMeta: metav1.ObjectMeta{},
+					Spec:       operatorv1.ConsoleSpec{},
+					Status:     operatorv1.ConsoleStatus{},
 				},
 			},
 			want: &routev1.Route{
-				TypeMeta: v1.TypeMeta{},
-				ObjectMeta: v1.ObjectMeta{
-					Name:      api.OpenShiftConsoleShortName,
-					Namespace: api.OpenShiftConsoleName,
-					Labels:    map[string]string{"app": api.OpenShiftConsoleName},
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        api.OpenShiftConsoleShortName,
+					Namespace:   api.OpenShiftConsoleNamespace,
+					Labels:      map[string]string{"app": api.OpenShiftConsoleName},
+					Annotations: map[string]string{},
 				},
 				Spec: routev1.RouteSpec{
 					To: routev1.RouteTargetReference{
@@ -76,20 +78,20 @@ func TestStub(t *testing.T) {
 		{
 			name: "Test stubbing out route",
 			want: &routev1.Route{
-				TypeMeta: v1.TypeMeta{},
-				ObjectMeta: v1.ObjectMeta{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
 					Name:                       api.OpenShiftConsoleShortName,
 					GenerateName:               "",
-					Namespace:                  api.OpenShiftConsoleName,
+					Namespace:                  api.OpenShiftConsoleNamespace,
 					SelfLink:                   "",
 					UID:                        "",
 					ResourceVersion:            "",
 					Generation:                 0,
-					CreationTimestamp:          v1.Time{},
+					CreationTimestamp:          metav1.Time{},
 					DeletionTimestamp:          nil,
 					DeletionGracePeriodSeconds: nil,
 					Labels:          map[string]string{"app": api.OpenShiftConsoleName},
-					Annotations:     nil,
+					Annotations:     map[string]string{},
 					OwnerReferences: nil,
 					Initializers:    nil,
 					Finalizers:      nil,
