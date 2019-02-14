@@ -121,11 +121,12 @@ rules:
   - update
   - watch
   resourceNames:
-  - openshift-console
+  - console
 - apiGroups:
   - config.openshift.io
   resources:
   - consoles
+  - consoles/status
   verbs:
   - get
   - list
