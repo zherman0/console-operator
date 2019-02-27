@@ -13,8 +13,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	// openshift
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/console-operator/pkg/api"
+	operatorclient "github.com/openshift/console-operator/pkg/console/operatorclient"
 	"github.com/openshift/library-go/pkg/controller/controllercmd"
+	"github.com/openshift/library-go/pkg/operator/status"
 
 	// clients
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
@@ -23,7 +26,7 @@ import (
 	authclient "github.com/openshift/client-go/oauth/clientset/versioned"
 	oauthinformers "github.com/openshift/client-go/oauth/informers/externalversions"
 
-	operatorclient "github.com/openshift/client-go/operator/clientset/versioned"
+	operatorversionedclient "github.com/openshift/client-go/operator/clientset/versioned"
 	operatorinformers "github.com/openshift/client-go/operator/informers/externalversions"
 
 	routesclient "github.com/openshift/client-go/route/clientset/versioned"
@@ -40,7 +43,7 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 	//	return err
 	//}
 
-	kubeClient, err := kubernetes.NewForConfig(ctx.KubeConfig)
+	kubeClient, err := kubernetes.NewForConfig(ctx.ProtoKubeConfig)
 	if err != nil {
 		return err
 	}
@@ -50,17 +53,17 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 		return err
 	}
 
-	consoleOperatorConfigClient, err := operatorclient.NewForConfig(ctx.KubeConfig)
+	consoleOperatorConfigClient, err := operatorversionedclient.NewForConfig(ctx.KubeConfig)
 	if err != nil {
 		return err
 	}
 
-	routesClient, err := routesclient.NewForConfig(ctx.KubeConfig)
+	routesClient, err := routesclient.NewForConfig(ctx.ProtoKubeConfig)
 	if err != nil {
 		return err
 	}
 
-	oauthClient, err := authclient.NewForConfig(ctx.KubeConfig)
+	oauthClient, err := authclient.NewForConfig(ctx.ProtoKubeConfig)
 	if err != nil {
 		return err
 	}
@@ -81,6 +84,10 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 
 	tweakListOptionsForOAuth := func(options *v1.ListOptions) {
 		options.FieldSelector = fields.OneTermEqualSelector("metadata.name", api.OAuthClientName).String()
+	}
+
+	tweakListOptionsForRoute := func(options *v1.ListOptions) {
+		options.FieldSelector = fields.OneTermEqualSelector("metadata.name", api.OpenShiftConsoleRouteName).String()
 	}
 
 	kubeInformersNamespaced := informers.NewSharedInformerFactoryWithOptions(
@@ -106,7 +113,7 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 		routesClient,
 		resync,
 		routesinformers.WithNamespace(api.TargetNamespace),
-		routesinformers.WithTweakListOptions(tweakListOptions),
+		routesinformers.WithTweakListOptions(tweakListOptionsForRoute),
 	)
 
 	// oauthclients are not namespaced
@@ -118,6 +125,11 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 
 	// TODO: Replace this with real event recorder (use ControllerContext).
 	recorder := ctx.EventRecorder
+
+	operatorClient := &operatorclient.OperatorClient{
+		Informers: consoleOperatorConfigInformers,
+		Client:    consoleOperatorConfigClient.OperatorV1(),
+	}
 
 	// TODO: rearrange these into informer,client pairs, NOT separated.
 	consoleOperator := operator.NewConsoleOperator(
@@ -140,46 +152,30 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 		recorder,
 	)
 
-	kubeInformersNamespaced.Start(ctx.Context.Done())
-	consoleOperatorConfigInformers.Start(ctx.Context.Done())
-	consoleConfigInformers.Start(ctx.Context.Done())
-	routesInformersNamespaced.Start(ctx.Context.Done())
-	oauthInformers.Start(ctx.Context.Done())
+	clusterOperatorStatus := status.NewClusterOperatorStatusController(
+		"console",
+		[]configv1.ObjectReference{
+			{Group: "operator.openshift.io", Resource: "consoles", Name: api.ConfigResourceName},
+			{Group: "config.openshift.io", Resource: "consoles", Name: api.ConfigResourceName},
+			{Group: "oauth.openshift.io", Resource: "oauthclients", Name: api.OAuthClientName},
+			{Resource: "namespaces", Name: api.OpenShiftConsoleOperatorNamespace},
+			{Resource: "namespaces", Name: api.OpenShiftConsoleNamespace},
+		},
+		consoleConfigClient.ConfigV1(),
+		operatorClient,
+		status.NewVersionGetter(),
+		ctx.EventRecorder,
+	)
 
-	go consoleOperator.Run(ctx.Context.Done())
+	kubeInformersNamespaced.Start(ctx.Done())
+	consoleOperatorConfigInformers.Start(ctx.Done())
+	consoleConfigInformers.Start(ctx.Done())
+	routesInformersNamespaced.Start(ctx.Done())
+	oauthInformers.Start(ctx.Done())
 
-	// TODO: turn this back on!
-	// for now its just creating noise.... as we need to update library-go for it to work correctly
-	// our version of library-go has the old group
-	//clusterOperatorStatus := status.NewClusterOperatorStatusController(
-	//	controller.TargetNamespace,
-	//	controller.ConfigResourceName,
-	//	// no idea why this is dynamic & not a strongly typed client.
-	//	dynamicClient,
-	//	&operatorStatusProvider{informers: consoleOperatorInformers},
-	//)
-	//// TODO: will have a series of Run() funcs here
-	//go clusterOperatorStatus.Run(1, stopCh)
-
-	<-ctx.Context.Done()
+	go consoleOperator.Run(ctx.Done())
+	go clusterOperatorStatus.Run(1, ctx.Done())
+	<-ctx.Done()
 
 	return fmt.Errorf("stopped")
 }
-
-// I'd prefer this in a /console/status/ package, but other operators keep it here.
-//type operatorStatusProvider struct {
-//	informers externalversions.SharedInformerFactory
-//}
-//
-//func (p *operatorStatusProvider) Informer() cache.SharedIndexInformer {
-//	return p.informers.Console().V1().Consoles().Informer()
-//}
-//
-//func (p *operatorStatusProvider) CurrentStatus() (operatorv1.OperatorStatus, error) {
-//	instance, err := p.informers.Console().V1().Consoles().Lister().Consoles(api.TargetNamespace).Get(api.ConfigResourceName)
-//	if err != nil {
-//		return operatorv1.OperatorStatus{}, err
-//	}
-//
-//	return instance.Status.OperatorStatus, nil
-//}
