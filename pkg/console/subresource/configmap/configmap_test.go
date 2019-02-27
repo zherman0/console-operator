@@ -120,7 +120,7 @@ func TestStub(t *testing.T) {
 			want: &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:                       ConsoleConfigMapName,
+					Name:                       "blah",
 					GenerateName:               "",
 					Namespace:                  api.OpenShiftConsoleNamespace,
 					SelfLink:                   "",
