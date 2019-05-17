@@ -25,6 +25,7 @@ import (
 
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/resource/resourceapply"
+	"github.com/openshift/library-go/pkg/operator/resourcesynccontroller"
 	"github.com/openshift/library-go/pkg/operator/status"
 
 	"monis.app/go/openshift/operator"
@@ -68,7 +69,8 @@ type consoleOperator struct {
 	infrastructureConfigClient configclientv1.InfrastructureInterface
 	versionGetter              status.VersionGetter
 	// recorder
-	recorder events.Recorder
+	recorder       events.Recorder
+	resourceSyncer resourcesynccontroller.ResourceSyncer
 }
 
 func NewConsoleOperator(
@@ -92,6 +94,7 @@ func NewConsoleOperator(
 	versionGetter status.VersionGetter,
 	// recorder
 	recorder events.Recorder,
+	resourceSyncer resourcesynccontroller.ResourceSyncer,
 ) operator.Runner {
 	c := &consoleOperator{
 		// configs
@@ -109,7 +112,8 @@ func NewConsoleOperator(
 		oauthClient:   oauthv1Client,
 		versionGetter: versionGetter,
 		// recorder
-		recorder: recorder,
+		recorder:       recorder,
+		resourceSyncer: resourceSyncer,
 	}
 
 	secretsInformer := coreV1.Secrets()
@@ -201,6 +205,11 @@ func (c *consoleOperator) handleSync(operatorConfig *operatorsv1.Console, consol
 		return fmt.Errorf("console is in an unknown state: %v", operatorConfigCopy.Spec.ManagementState)
 	}
 
+	sErr := c.handleConfigMapSync(operatorConfig)
+	if sErr != nil {
+		return sErr
+	}
+
 	// we can default to not failing, and wait to see if sync returns an error
 	c.ConditionNotDegraded(operatorConfigCopy)
 	err := sync_v400(c, operatorConfigCopy, consoleConfig, infrastructureConfig)
@@ -250,4 +259,22 @@ func (c *consoleOperator) removeConsole(cr *operatorsv1.Console) error {
 	errs = append(errs, updateConfigErr)
 
 	return utilerrors.FilterOut(utilerrors.NewAggregate(errs), errors.IsNotFound)
+}
+
+func (c *consoleOperator) handleConfigMapSync(operatorConfig *operatorsv1.Console) error {
+	// Get Operator Config here
+	logoName := operatorConfig.Spec.Customization.CustomLogoFile.Name
+	// add syncing for the custom logo config map
+	if logoName != "" {
+		err := c.resourceSyncer.SyncConfigMap(
+			resourcesynccontroller.ResourceLocation{Namespace: api.OpenShiftConsoleNamespace, Name: logoName},
+			resourcesynccontroller.ResourceLocation{Namespace: api.OpenShiftConfigNamespace, Name: logoName},
+		)
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+
 }

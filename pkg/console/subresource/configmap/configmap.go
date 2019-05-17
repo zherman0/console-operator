@@ -16,12 +16,10 @@ import (
 )
 
 const (
-	consoleConfigYamlFile = "console-config.yaml"
-)
-
-// overridden by console config
-const (
-	defaultLogoutURL = ""
+	consoleConfigYamlFile    = "console-config.yaml"
+	defaultLogoutURL         = ""
+	defaultCustomProductName = ""
+	defaultCustomLogoFile    = ""
 )
 
 func getApiUrl(infrastructureConfig *configv1.Infrastructure) string {
@@ -51,9 +49,17 @@ func DefaultConfigMap(
 		Brand(DEFAULT_BRAND).
 		DocURL(DEFAULT_DOC_URL).
 		APIServerURL(getApiUrl(infrastructureConfig)).
+		CustomLogoFile(defaultCustomLogoFile).
+		CustomProductName(defaultCustomProductName).
 		ConfigYAML()
 
 	extractedManagedConfig := extractYAML(managedConfig)
+
+	customProductName := operatorConfig.Spec.Customization.CustomProductName
+	customLogoFile := operatorConfig.Spec.Customization.CustomLogoFile.Key
+	if customLogoFile != "" {
+		customLogoFile = "/var/logo/" + customLogoFile // append path here to prevent customLogoFile from always being just /var/logo/
+	}
 
 	userDefinedBuilder := &consoleserver.ConsoleServerCLIConfigBuilder{}
 	userDefinedConfig, err := userDefinedBuilder.Host(rt.Spec.Host).
@@ -61,6 +67,8 @@ func DefaultConfigMap(
 		Brand(operatorConfig.Spec.Customization.Brand).
 		DocURL(operatorConfig.Spec.Customization.DocumentationBaseURL).
 		APIServerURL(getApiUrl(infrastructureConfig)).
+		CustomLogoFile(customLogoFile).
+		CustomProductName(customProductName).
 		StatusPageID(statusPageId(operatorConfig)).
 		ConfigYAML()
 
