@@ -124,7 +124,8 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 	versionGetter := status.NewVersionGetter()
 
 	resourceSyncerInformers := v1helpers.NewKubeInformersForNamespaces(
-		kubeClient,
+		//TODO: Finish ClientWithoutSecret
+		ClientWithoutSecret(kubeClient),
 		api.OpenShiftConfigNamespace,
 		api.OpenShiftConsoleNamespace,
 	)
@@ -132,8 +133,9 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 	resourceSyncer := resourcesynccontroller.NewResourceSyncController(
 		operatorClient,
 		resourceSyncerInformers,
-		v1helpers.CachedSecretGetter(kubeClient.CoreV1(), resourceSyncerInformers),
-		v1helpers.CachedConfigMapGetter(kubeClient.CoreV1(), resourceSyncerInformers),
+		//TODO: Finish ClientWithoutSecret
+		v1helpers.CachedSecretGetter(ClientWithoutSecret(kubeClient).CoreV1(), resourceSyncerInformers),
+		v1helpers.CachedConfigMapGetter(ClientWithoutSecret(kubeClient).CoreV1(), resourceSyncerInformers),
 		ctx.EventRecorder,
 	)
 
