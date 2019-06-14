@@ -37,6 +37,7 @@ import (
 	routesclient "github.com/openshift/client-go/route/clientset/versioned"
 	routesinformers "github.com/openshift/client-go/route/informers/externalversions"
 
+	"github.com/openshift/console-operator/pkg/console/clientwrapper"
 	"github.com/openshift/console-operator/pkg/console/operator"
 )
 
@@ -123,21 +124,7 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 
 	versionGetter := status.NewVersionGetter()
 
-	resourceSyncerInformers := v1helpers.NewKubeInformersForNamespaces(
-		//TODO: Finish ClientWithoutSecret
-		ClientWithoutSecret(kubeClient),
-		api.OpenShiftConfigNamespace,
-		api.OpenShiftConsoleNamespace,
-	)
-
-	resourceSyncer := resourcesynccontroller.NewResourceSyncController(
-		operatorClient,
-		resourceSyncerInformers,
-		//TODO: Finish ClientWithoutSecret
-		v1helpers.CachedSecretGetter(ClientWithoutSecret(kubeClient).CoreV1(), resourceSyncerInformers),
-		v1helpers.CachedConfigMapGetter(ClientWithoutSecret(kubeClient).CoreV1(), resourceSyncerInformers),
-		ctx.EventRecorder,
-	)
+	resourceSyncerInformers, resourceSyncer := getResourceSyncer(ctx, clientwrapper.WithoutSecret(kubeClient), operatorClient)
 
 	// TODO: rearrange these into informer,client pairs, NOT separated.
 	consoleOperator := operator.NewConsoleOperator(
@@ -209,4 +196,20 @@ func RunOperator(ctx *controllercmd.ControllerContext) error {
 
 	<-ctx.Done()
 	return fmt.Errorf("stopped")
+}
+
+func getResourceSyncer(ctx *controllercmd.ControllerContext, kubeClient kubernetes.Interface, operatorClient v1helpers.OperatorClient) (v1helpers.KubeInformersForNamespaces, *resourcesynccontroller.ResourceSyncController) {
+	resourceSyncerInformers := v1helpers.NewKubeInformersForNamespaces(
+		kubeClient,
+		api.OpenShiftConfigNamespace,
+		api.OpenShiftConsoleNamespace,
+	)
+	resourceSyncer := resourcesynccontroller.NewResourceSyncController(
+		operatorClient,
+		resourceSyncerInformers,
+		v1helpers.CachedSecretGetter(kubeClient.CoreV1(), resourceSyncerInformers),
+		v1helpers.CachedConfigMapGetter(kubeClient.CoreV1(), resourceSyncerInformers),
+		ctx.EventRecorder,
+	)
+	return resourceSyncerInformers, resourceSyncer
 }
